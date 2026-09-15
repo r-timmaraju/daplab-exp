@@ -1,4 +1,4 @@
-# How it works
+# Optimizer-Agnostic Gradient Transformation
 
 The optimizer is never edited. Instead, the gradient is rewritten before and
 after `optimizer.step()`, using the two hooks `torch.optim.Optimizer` exposes:
@@ -13,10 +13,7 @@ gradient, replaces `p.grad` in place by $T(g) = g|g|$, saving a copy of the para
 The optimizer then executes its ordinary `step()`, reading `p.grad` as usual, so it sees only
 $T(g)$. `post` restores the original gradient by copying it back.
 
-Both writes use `p.grad.copy_(...)` rather than `p.grad = ...`, so the
-gradient tensor keeps its storage.
-
-# Why it is optimizer-agnostic
+## Optimizer-agnostic
 
 The only interface an optimizer has with the outside world is to read
 `p.grad` for each `p` in `param_groups` during `step()`. The hooks operate
@@ -32,7 +29,7 @@ and AdamW by checking, to $10^{-12}$, that the hooked run matches a manual
 run in which `p.grad` is set to $T(g)$ by hand and the same `step()` is
 called.
 
-# Assumptions, limitations, unsupported cases
+## Assumptions, limitations, unsupported cases
 
 - This ransforms the accumulated gradient. Because $T$ is nonlinear,
   $T(g_1 + g_2) \ne T(g_1) + T(g_2)$. Applying $T$ at `step()` time is
@@ -48,7 +45,7 @@ called.
 
 An alternate way (since $T$ is a bijection) to do this would be to directly perform the transform $T$ on `p.grad` in `pre` and then perform the inverse transform $T^{-1}(g) = \text{sign}(g) \sqrt{|g|}$ in `post`. This would have no (O(1)) memory overhead as everything would be in place, but still have $O(N)$ time complexity. This would also suffer from floating point rounding issues - the restored gradients wouldn't be exactly the same as they previously were, and precision will be lost through the process. 
 
-# Overhead
+## Overhead
 
 Let $N$ be the total number of parameters.
 
